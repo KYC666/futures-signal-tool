@@ -87,14 +87,15 @@
   .chart.main{height:232px}
   .note{margin-top:10px;font-size:12px;color:var(--muted);padding:7px 10px;border-radius:7px;background:var(--panel);border:1px solid var(--line)}
   .note.hot{color:var(--gold);border-color:rgba(226,185,90,.35);font-weight:600;background:rgba(226,185,90,.06)}
-  /* 折叠按钮(窄屏显示) */
-  .foldbtn{display:none;background:var(--panel);border:1px solid var(--line2);color:var(--muted);
-    border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer;font-family:var(--font);margin-left:6px;flex:none}
+  /* 折叠按钮(桌面+窄屏都显示) */
+  .foldbtn{display:inline-flex;align-items:center;background:var(--panel);border:1px solid var(--line2);color:var(--muted);
+    border-radius:7px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:var(--font);margin-left:6px;flex:none;line-height:1}
   .foldbtn:hover{color:var(--gold);border-color:var(--gold)}
+  /* 图表区:默认折叠(只藏图表),展开时才显示 */
+  .detail{display:none}
+  .card.open .detail{display:block}
   @media(max-width:719px){
-    .detail{display:none}
-    .card.open .detail{display:block}
-    .foldbtn{display:inline-flex;align-items:center;padding:7px 13px;font-size:12px;min-height:34px;min-width:56px;justify-content:center}
+    .foldbtn{padding:7px 13px;font-size:12px;min-height:34px;min-width:56px;justify-content:center}
     .statusbar{gap:8px}
     .statusbar .btn{padding:9px 15px;font-size:13px;min-height:40px;border-radius:9px}
     #notifBtn,#soundBtn,#pnlBtn,#refreshBtn{display:none}
@@ -250,11 +251,19 @@ var COMMON = [
 
 var DEF_CONF = {
   capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true, refresh:30, sound:true, notif:false,
-  syms:[
-    {name:"黄金", letter:"AU", mult:1000, fee:10, dec:2, month:"0", main:false},
-    {name:"原油", letter:"SC", mult:1000, fee:20, dec:1, month:"0", main:false}
-  ]
+  syms:[]
 };
+/* 空页面快速添加的常用品种 */
+var QUICK=[{name:"黄金",letter:"AU"},{name:"原油",letter:"SC"},{name:"玻璃",letter:"FG"},
+           {name:"螺纹钢",letter:"RB"},{name:"PVC",letter:"V"},{name:"甲醇",letter:"MA"}];
+function quickAdd(letter){
+  var m=COMMON.find(function(o){return o.letter===letter;});
+  if(!m) return;
+  var code=letter+"0";
+  if(CONF.syms.some(function(s){ return codeOf(s)===code; })){ alert(m.name+"已在列表里"); return; }
+  CONF.syms.push({name:m.name, letter:m.letter, mult:m.mult, fee:m.fee, dec:m.dec, month:"0", main:false});
+  saveConf(); rebuild(); renderLog(); clearTimeout(timer); beginRound();
+}
 var CONF = loadConf();
 var SYMS=[], CFG={}, STOP_PTS={}, BUFFER=0.001, REFRESH=(CONF.refresh>0?CONF.refresh:0)*1000;
 var state={};
@@ -278,15 +287,6 @@ function loadConf(){
         });
         // 旧默认(2万/止损200) 自动切换到新默认(10万/止损0/日亏0)，保留已添加的合约
         if(c.capital===20000 && c.maxLoss===200){ c.capital=100000; c.maxLoss=0; c.maxDayLoss=0; }
-        // 确保首页默认有黄金和原油(没有就补上, 保留用户自己加的)
-        var have={}; c.syms.forEach(function(s){ have[s.letter]=1; });
-        var defs=[{letter:"AU",name:"黄金"},{letter:"SC",name:"原油"}];
-        defs.forEach(function(d){
-          if(!have[d.letter]){
-            var m=COMMON.find(function(o){return o.letter===d.letter;});
-            c.syms.unshift({name:d.name, letter:d.letter, mult:m.mult, fee:m.fee, dec:m.dec, month:"0", main:false});
-          }
-        });
         if(c.showPnl===undefined) c.showPnl=true;
         if(c.refresh===undefined) c.refresh=30;
         if(c.sound===undefined) c.sound=true;
@@ -312,7 +312,7 @@ function rebuild(){
     STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/CFG[code].mult*100)/100 : null;
     state[code]={price:null,vwap:null,prev:null,chgPct:null,vol:null,oi:null,
       hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null,
-      minline:[], daily:null, chartMode:"min", kp:"5m", folded:true};
+      minline:[], daily:null, chartMode:"min", kp:"5m", folded:window.innerWidth<720};
   });
   document.getElementById("headMeta").textContent =
     "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元";
@@ -436,7 +436,7 @@ function computeSignal(code){
 }
 
 /* ================= 渲染 ================= */
-var lastFull=null;
+var lastFull=new Date();   // 最后更新时间(初始=页面打开时刻)，空状态也显示
 function finishRound(){ lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
 function decOf(code){ var cfg=CFG[code]; return (cfg && cfg.dec!=null)? cfg.dec : 0; }
@@ -583,10 +583,17 @@ function drawK(cv,st,period){
 }
 function render(){
   var grid=document.getElementById("grid");
+  document.getElementById("updateTime").textContent =
+    "更新 "+new Date(lastFull).toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})+
+    (REFRESH===0? " · 手动模式" : "");
   document.getElementById("headMeta").textContent =
     "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元"+(dayStopped?" · 已单日停手":"");
   if(!SYMS.length){
-    grid.innerHTML='<div style="grid-column:1/-1;color:var(--dim);text-align:center;padding:48px 0;font-size:14px;line-height:2">还没有监控合约<br>点右上角「设置」，自己添加品种和月份</div>';
+    grid.innerHTML='<div style="grid-column:1/-1;color:var(--dim);text-align:center;padding:34px 0 10px;font-size:14px;line-height:2">还没有监控合约<br>点右上角「设置」，自己添加品种和月份</div>'+
+      '<div style="grid-column:1/-1;text-align:center;padding:0 0 18px"><div style="font-size:12px;color:var(--muted);margin-bottom:10px">或快速添加常用品种</div>'+
+      '<div style="display:inline-flex;flex-wrap:wrap;gap:8px;justify-content:center">'+
+      QUICK.map(function(q){ return '<button type="button" class="btn gold" onclick="quickAdd(\''+q.letter+'\')">'+q.name+'</button>'; }).join("")+
+      '</div></div>';
     return;
   }
   grid.innerHTML="";
@@ -665,8 +672,6 @@ function render(){
     grid.appendChild(card);
   });
   grid.querySelectorAll("canvas.chart").forEach(function(cv){ drawChart(cv); });
-  document.getElementById("updateTime").textContent =
-    lastFull? ("更新 "+new Date(lastFull).toLocaleTimeString("zh-CN",{hour12:false})) : "";
 }
 
 /* ================= 今日信号记录 ================= */
@@ -852,7 +857,8 @@ document.getElementById("saveSet").addEventListener("click",function(){
   CONF.maxLoss=Number(document.getElementById("fLoss").value)||DEF_CONF.maxLoss;
   CONF.maxDayLoss=Number(document.getElementById("fDay").value)||DEF_CONF.maxDayLoss;
   CONF.showPnl=document.getElementById("fShowPnl").checked;
-  CONF.refresh=Number(document.getElementById("fRefresh").value)||30;
+  CONF.refresh = Number(document.getElementById("fRefresh").value);
+  if(isNaN(CONF.refresh) || CONF.refresh==null) CONF.refresh=30;
   CONF.sound=document.getElementById("fSound").checked;
   CONF.notif=document.getElementById("fNotif").checked;
   CONF.syms=syms;
