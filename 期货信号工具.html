@@ -72,6 +72,11 @@
   .kv div{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
   .kv div .k{color:var(--dim);display:block;font-size:10px;letter-spacing:.5px;margin-bottom:2px}
   .kv div .v{color:var(--text);font-weight:700;font-family:var(--mono);font-size:13px}
+  /* 紧凑小字数据(价格后) */
+  .minidata{margin-top:9px;font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.6;
+    display:flex;flex-wrap:wrap;gap:4px 0;padding-top:8px;border-top:1px dashed var(--line)}
+  .minidata b{color:var(--dim);font-weight:600;margin-right:2px}
+  .minidata .v{color:var(--text);font-weight:700;margin-right:10px}
   .chartbar{display:flex;align-items:center;gap:6px;margin-top:10px}
   .chartbar .tabs{display:flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden;flex:none}
   .chartbar .tabs button{background:var(--panel);border:none;color:var(--muted);padding:4px 11px;font-size:11px;cursor:pointer;font-family:var(--font)}
@@ -82,6 +87,7 @@
   .chart.main{height:232px}
   .note{margin-top:10px;font-size:12px;color:var(--muted);padding:7px 10px;border-radius:7px;background:var(--panel);border:1px solid var(--line)}
   .note.hot{color:var(--gold);border-color:rgba(226,185,90,.35);font-weight:600;background:rgba(226,185,90,.06)}
+  /* 折叠按钮(窄屏显示) */
   .foldbtn{display:none;background:var(--panel);border:1px solid var(--line2);color:var(--muted);
     border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer;font-family:var(--font);margin-left:6px;flex:none}
   .foldbtn:hover{color:var(--gold);border-color:var(--gold)}
@@ -109,6 +115,7 @@
   .empty{font-size:12px;color:var(--dim);padding:6px 8px}
   .logsum{font-size:12px;color:var(--text);padding:6px 8px 2px;border-bottom:1px solid var(--line);margin-bottom:2px}
   .footer{margin-top:20px;font-size:11px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px;line-height:1.8}
+  /* 设置 */
   .mask{position:fixed;inset:0;background:rgba(5,8,12,.8);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;padding:14px}
   .mask.show{display:flex}
   .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line2);border-radius:14px;width:100%;max-width:600px;max-height:90vh;overflow:auto;padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
@@ -225,6 +232,7 @@
 
 <script>
 "use strict";
+/* ================= 常用品种库（乘数与手续费按交易所标准，手续费可在设置里改） ================= */
 var COMMON = [
   {name:"黄金",  letter:"AU", mult:1000, fee:10, dec:2}, {name:"原油",  letter:"SC", mult:1000, fee:20, dec:1},
   {name:"玻璃",  letter:"FG", mult:20, fee:6,  dec:0},   {name:"螺纹钢",letter:"RB", mult:10, fee:4,  dec:0},
@@ -268,7 +276,9 @@ function loadConf(){
             sym.fee = m? m.fee : 1;
           }
         });
+        // 旧默认(2万/止损200) 自动切换到新默认(10万/止损0/日亏0)，保留已添加的合约
         if(c.capital===20000 && c.maxLoss===200){ c.capital=100000; c.maxLoss=0; c.maxDayLoss=0; }
+        // 确保首页默认有黄金和原油(没有就补上, 保留用户自己加的)
         var have={}; c.syms.forEach(function(s){ have[s.letter]=1; });
         var defs=[{letter:"AU",name:"黄金"},{letter:"SC",name:"原油"}];
         defs.forEach(function(d){
@@ -302,12 +312,13 @@ function rebuild(){
     STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/CFG[code].mult*100)/100 : null;
     state[code]={price:null,vwap:null,prev:null,chgPct:null,vol:null,oi:null,
       hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null,
-      minline:[], daily:null, chartMode:"min", kp:"5m", folded:false};
+      minline:[], daily:null, chartMode:"min", kp:"5m", folded:true};
   });
   document.getElementById("headMeta").textContent =
     "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元";
 }
 
+/* ================= 音频 + 通知 ================= */
 var AudioCtx=null, soundOn=(CONF.sound!==false), notifOn=!!CONF.notif, notifGranted=false;
 function ensureAudio(){
   if(!AudioCtx){ try{ AudioCtx=new(window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
@@ -329,6 +340,7 @@ function notify(title,body){
   if(notifOn && notifGranted && "Notification" in window){ try{ new Notification(title,{body:body}); }catch(e){} }
 }
 
+/* ================= 行情拉取(JSONP 分时) ================= */
 function loadScript(src,onload,onerr){
   var s=document.createElement("script"); s.src=src; s.async=true;
   s.onload=function(){ if(onload)onload(); };
@@ -375,7 +387,7 @@ function applyMinline(code,arr){
   st.vol=Math.round(v);
   st.chgPct=st.prev? (st.price-st.prev)/st.prev*100 : null;
 }
-var dayStopped=false, dayRealized=0;
+var dayStopped=false, dayRealized=0;   // 单日停手: 当日累计已实现亏损达上限则当天不再发操作信号
 function openPos(code,st,side){
   st.closedPnl=null;
   st.hold=side; st.entry=st.price; st.entryTime=new Date();
@@ -399,6 +411,7 @@ function computeSignal(code){
   var dir = dev<BUFFER? "观望" : (st.price>=st.vwap? "多":"空");
   var lastDir=st.lastDir; st.lastDir=dir;
   var event=null;
+  // 1) 点位止损(单笔止损>0才设): 现价触及止损位 -> 强制平仓
   if(st.hold!=="无" && st.stop!=null && st.price!=null){
     if((st.hold==="多" && st.price<=st.stop) || (st.hold==="空" && st.price>=st.stop)){
       event = st.hold==="多" ? "止损平多" : "止损平空";
@@ -406,6 +419,7 @@ function computeSignal(code){
       return {dir:dir,event:event};
     }
   }
+  // 2) 均价强平: 持仓中现价触碰到分时均价线即强制平仓(无论盈亏, 不影响指标显示)
   if(st.hold!=="无" && st.vwap!=null && st.price!=null){
     if((st.hold==="多" && st.price<=st.vwap) || (st.hold==="空" && st.price>=st.vwap)){
       event = st.hold==="多" ? "强平多" : "强平空";
@@ -413,12 +427,15 @@ function computeSignal(code){
       return {dir:dir,event:event};
     }
   }
+  // 3) 单日停手(设0=不限): 已达当日亏损上限, 当天不再发操作信号
   if(dayStopped) return {dir:dir,event:null};
+  // 4) 开仓信号(平仓统一走均价强平)
   if(dir==="多" && lastDir!=="多" && st.hold==="无"){ event="开多"; openPos(code,st,"多"); }
   else if(dir==="空" && lastDir!=="空" && st.hold==="无"){ event="开空"; openPos(code,st,"空"); }
   return {dir:dir,event:event};
 }
 
+/* ================= 渲染 ================= */
 var lastFull=null;
 function finishRound(){ lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
@@ -449,6 +466,7 @@ function saveEntry(code,v){
   }
   st.editingEntry=false; render();
 }
+/* 用当天分时数据(1分钟/条)聚合出 N 分钟K线 */
 function aggMin(minline,n){
   var out=[], cnt=Math.ceil(minline.length/n);
   for(var b=0;b<cnt;b++){
@@ -506,16 +524,19 @@ function drawMin(cv,st){
   function x(i){ return pad+(i/(price.length-1))*(W-pad*2); }
   function y(v){ return pad+(hi-v)/range*(chH-pad*2); }
   gridLines(ctx,W,chH,4);
+  // 均线(金)
   if(st.vwap!=null){
     ctx.strokeStyle="#e2b95a"; ctx.lineWidth=1.4;
     ctx.beginPath();
     for(var i=0;i<price.length;i++){ var px=x(i),py=y(st.vwap); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
     ctx.stroke();
   }
+  // 现价线(白)
   ctx.strokeStyle="#e8edf5"; ctx.lineWidth=1.5;
   ctx.beginPath();
   for(var i=0;i<price.length;i++){ var px=x(i),py=y(price[i]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
   ctx.stroke();
+  // 量柱
   var volArr=[], maxV=1;
   st.minline.forEach(function(r){ var v=parseFloat(r[3])||0; volArr.push(v); maxV=Math.max(maxV,v); });
   var bw=Math.max(1,(W-pad*2)/volArr.length*0.8);
@@ -542,6 +563,7 @@ function drawK(cv,st,period){
   function y(v){ return pad+(hi-v)/range*(chH-pad*2); }
   gridLines(ctx,W2,chH,4);
   var bw=Math.max(1,(W2-pad*2)/bars.length*0.7);
+  // 蜡烛按指标着色: 收盘>=当日均价 红, 否则 绿
   for(var i=0;i<bars.length;i++){
     var b=bars[i];
     var col = vwap!=null ? (b.c>=vwap?"#f4575b":"#2fc48e") : (b.c>=b.o?"#f4575b":"#2fc48e");
@@ -552,6 +574,7 @@ function drawK(cv,st,period){
     if(b.c>=b.o){ ctx.fillRect(cx-bw/2, yc, bw, Math.max(1,yo-yc)); }
     else { ctx.fillRect(cx-bw/2, yo, bw, Math.max(1,yc-yo)); }
   }
+  // 当日均价线(指标)
   if(vwap!=null){
     ctx.strokeStyle="#e2b95a"; ctx.lineWidth=1.6; ctx.setLineDash([6,4]);
     ctx.beginPath(); ctx.moveTo(0,y(vwap)); ctx.lineTo(W2,y(vwap)); ctx.stroke();
@@ -617,19 +640,19 @@ function render(){
       '<div class="price '+priceCls(chg)+'">'+(st.price!=null?pfmt(code,st.price):"—")+'</div>'+
       '<div class="chg '+priceCls(chg)+'">'+chgTxt+'</div>'+
       pnlTxt+
+      '<div class="minidata">'+
+        '<span>均价 <span class="v">'+(st.vwap!=null?pfmt(code,st.vwap):"—")+'</span></span>'+
+        '<span>量 <span class="v">'+(st.vol!=null?(st.vol/10000).toFixed(1)+"万":"—")+'</span></span>'+
+        '<span>仓 <span class="v">'+(st.oi!=null?(st.oi/10000).toFixed(1)+"万":"—")+'</span></span>'+
+        '<span>止损 <span class="v">'+(st.stop!=null?pfmt(code,st.stop):"—")+'</span></span>'+
+      '</div>'+
+      '<div class="minidata" style="margin-top:2px;padding-top:0;border-top:none">'+
+        '<span>今开 <span class="v">'+(st.open!=null?pfmt(code,st.open):"—")+'</span></span>'+
+        '<span>最高 <span class="v">'+(st.high!=null?pfmt(code,st.high):"—")+'</span></span>'+
+        '<span>最低 <span class="v">'+(st.low!=null?pfmt(code,st.low):"—")+'</span></span>'+
+        '<span>昨结 <span class="v">'+(st.prev!=null?pfmt(code,st.prev):"—")+'</span></span>'+
+      '</div>'+
       '<div class="detail">'+
-      '<div class="kv">'+
-        '<div><span class="k">当日均价</span><span class="v">'+(st.vwap!=null?pfmt(code,st.vwap):"—")+'</span></div>'+
-        '<div><span class="k">成交量</span><span class="v">'+(st.vol!=null?(st.vol/10000).toFixed(1)+"万":"—")+'</span></div>'+
-        '<div><span class="k">持仓量</span><span class="v">'+(st.oi!=null?(st.oi/10000).toFixed(1)+"万":"—")+'</span></div>'+
-        '<div><span class="k">止损</span><span class="v">'+(st.stop!=null?pfmt(code,st.stop):"—")+'</span></div>'+
-      '</div>'+
-      '<div class="kv" style="margin-top:4px">'+
-        '<div><span class="k">今开</span><span class="v">'+(st.open!=null?pfmt(code,st.open):"—")+'</span></div>'+
-        '<div><span class="k">最高</span><span class="v">'+(st.high!=null?pfmt(code,st.high):"—")+'</span></div>'+
-        '<div><span class="k">最低</span><span class="v">'+(st.low!=null?pfmt(code,st.low):"—")+'</span></div>'+
-        '<div><span class="k">昨结</span><span class="v">'+(st.prev!=null?pfmt(code,st.prev):"—")+'</span></div>'+
-      '</div>'+
       '<div class="chartbar"><span class="tabs">'+
         '<button type="button" onclick="toggleChart(\''+code+'\',\'min\')"'+(st.chartMode!=="kline"?' class="on"':'')+'>分时</button>'+
         '<button type="button" onclick="toggleChart(\''+code+'\',\'kline\')"'+(st.chartMode==="kline"?' class="on"':'')+'>K线</button>'+
@@ -637,8 +660,8 @@ function render(){
       (st.chartMode==="kline"? '<select class="kp" onchange="setKp(\''+code+'\',this.value)">'+KPERIODS.map(function(p){return '<option value="'+p[0]+'"'+(st.kp===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>' : '')+
       '</div>'+
       '<canvas class="chart'+(cfg.main?' main':'')+'" data-code="'+code+'"></canvas>'+
-      '<div class="note'+(event?" hot":"")+'">'+tip+'</div>'+
-      '</div>';
+      '</div>'+
+      '<div class="note'+(event?" hot":"")+'">'+tip+'</div>';
     grid.appendChild(card);
   });
   grid.querySelectorAll("canvas.chart").forEach(function(cv){ drawChart(cv); });
@@ -646,6 +669,7 @@ function render(){
     lastFull? ("更新 "+new Date(lastFull).toLocaleTimeString("zh-CN",{hour12:false})) : "";
 }
 
+/* ================= 今日信号记录 ================= */
 function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 var logs=[], logDate="";
 function addLog(code,name,event,st){
@@ -672,6 +696,7 @@ function renderLog(){
 }
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
+/* ================= 网络/调度 ================= */
 function setNet(ok){
   document.getElementById("netStatus").innerHTML =
     ok? '<span class="dot"></span>行情已连接' : '<span class="dot err"></span>暂无行情（可能被预览环境拦截），重试中…';
@@ -679,6 +704,7 @@ function setNet(ok){
 var timer=null;
 function schedule(){ clearTimeout(timer); if(REFRESH>0) timer=setTimeout(beginRound,REFRESH); }
 
+/* ================= 月份探测 ================= */
 function genMonths(n){
   var now=new Date(), out=[];
   for(var i=1;i<=n;i++){
@@ -739,6 +765,7 @@ function renderCommSel(){
     COMMON.map(function(c,i){ return '<option value="'+i+'">'+c.name+'（'+c.letter+'）</option>'; }).join("");
 }
 
+/* ================= 设置面板 ================= */
 function openSet(){
   document.getElementById("fCap").value=CONF.capital;
   document.getElementById("fLoss").value=CONF.maxLoss;
@@ -777,6 +804,7 @@ function collectSyms(){
   return out;
 }
 
+/* ================= 事件 ================= */
 document.addEventListener("click",ensureAudio);
 document.getElementById("setBtn").addEventListener("click",openSet);
 document.getElementById("cancelSet").addEventListener("click",function(){ document.getElementById("mask").classList.remove("show"); });
@@ -870,6 +898,7 @@ function togglePnl(){
 }
 refreshPnlBtn();
 
+/* ================= 启动 ================= */
 rebuild();
 function initProbe(){
   var letters={};
