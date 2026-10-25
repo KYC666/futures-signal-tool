@@ -813,6 +813,8 @@ function collectSyms(){
 document.addEventListener("click",ensureAudio);
 document.getElementById("setBtn").addEventListener("click",openSet);
 document.getElementById("cancelSet").addEventListener("click",function(){ document.getElementById("mask").classList.remove("show"); });
+/* 点弹窗外空白处也关闭设置 */
+document.getElementById("mask").addEventListener("click",function(e){ if(e.target===this){ this.classList.remove("show"); } });
 document.getElementById("commSel").addEventListener("change",function(){
   var idx=this.value; if(idx==="") return;
   var c=COMMON[Number(idx)];
