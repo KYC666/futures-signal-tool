@@ -74,10 +74,6 @@
   .ePrice{cursor:pointer;border-bottom:1px dashed transparent;transition:color .15s,border-color .15s}
   .ePrice:hover{color:var(--gold);border-color:var(--gold)}
   .entryEdit{background:var(--panel);border:1px solid var(--gold);color:var(--text);border-radius:6px;padding:3px 6px;font-family:var(--mono);font-size:12px;width:90px;margin-left:6px;box-shadow:0 0 0 2px rgba(226,185,90,.15)}
-  .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;font-size:12px;padding-top:10px;border-top:1px dashed var(--line)}
-  .kv div{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
-  .kv div .k{color:var(--dim);display:block;font-size:10px;letter-spacing:.5px;margin-bottom:2px}
-  .kv div .v{color:var(--text);font-weight:700;font-family:var(--mono);font-size:13px}
   /* 紧凑小字数据(价格后) */
   .minidata{margin-top:9px;font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.6;
     display:flex;flex-wrap:wrap;gap:4px 0;padding-top:8px;border-top:1px dashed var(--line)}
@@ -112,7 +108,6 @@
     .chartbar select{padding:7px 10px;font-size:12px;min-height:36px;border-radius:8px}
     .price{font-size:34px}
     .sig{padding:5px 14px;font-size:13px}
-    .kv div .v{font-size:14px}
     /* 手机端设置面板：三列改单列、输入按屏宽换行 */
     .numrow{grid-template-columns:1fr !important}
     .optrow{flex-wrap:wrap !important;gap:8px 14px !important}
@@ -124,6 +119,20 @@
   .loghdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .clearLogBtn{font-size:11px;padding:4px 10px;color:var(--muted)}
   .clearLogBtn:hover{color:var(--up);border-color:var(--up)}
+  /* 休市表过期提醒(跨年后自动亮起) */
+  .hwarn{background:rgba(226,185,90,.12);border:1px solid rgba(226,185,90,.5);color:var(--gold);border-radius:8px;
+    padding:8px 12px;font-size:12px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  /* 信号验证(强弱/量能回溯)统计 */
+  .vhd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px}
+  .vhd>span:first-child{font-weight:600;color:var(--text)}
+  .vdesc{font-size:11px;color:var(--muted)}
+  .vbody{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--card)}
+  .vline{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;color:var(--text)}
+  .vline.vtotal{border-bottom:1px dashed var(--line);padding-bottom:6px;margin-bottom:4px}
+  .vlab{width:70px;color:var(--muted);flex:none}
+  .vval{flex:1}
+  .vhit{width:52px;text-align:right;color:var(--up);font-weight:600;flex:none}
+  .vnote{font-size:11px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
   .logrow{display:flex;gap:12px;align-items:baseline;font-size:12px;padding:6px 8px;color:var(--muted);border-radius:6px}
   .logrow:nth-child(odd){background:rgba(255,255,255,.02)}
   .logrow{cursor:pointer;transition:background .15s}
@@ -187,6 +196,7 @@
 </style>
 </head>
 <body>
+  <div id="holidayWarn" class="hwarn" style="display:none"></div>
   <div class="head">
     <div class="brand"><svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#16202e"/><path d="M7 16l3-4 3 2 4-6" stroke="#e2b95a" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <div><h1>期货信号工具</h1><span class="sub">分时均线趋势 · 只报信号不下单</span></div>
@@ -214,6 +224,8 @@
     <div id="logList"><div class="empty">今天还没有信号</div></div>
   </div>
 
+  <div id="verBox"></div>
+
   <div class="fbsection">
     <span>遇到问题、想提建议，或测试中发现不对的地方？</span>
     <a class="fbBtn" href="https://github.com/KYC666/futures-signal-tool/issues/new" target="_blank" rel="noopener">
@@ -227,6 +239,7 @@
     信号规则＝《分时均线趋势》：当日均价线 = 当日累计成交额÷成交量；现价≥均价看多，现价&lt;均价看空，贴着均价算观望。<br>
     开仓＝现价突破均价（开多/开空）；持仓中现价触碰分时均价线即强平（强平多/强平空），不自动反手。止损＝你设的单笔止损÷合约乘数，精确到1点（设0＝不限）。<br>
     设置里「左选品种、右选月份」：月份自动探测当前挂牌合约，主力连续会自动跟随主力月。数据来自新浪免费行情，连网即用；第一次用建议点一下页面启用提醒音。<br>
+    信号冷却＝开仓后进入冷却期（防均价线附近来回信号）；信号强弱+量能用于判断突破靠不靠谱；页面下方「信号验证」用真实数据攒几天验证这套判断准不准。<br>
     <span class="disclaimer">本工具仅供学习研究，仅供参考，不构成任何投资建议，据此操作盈亏自负。</span>
   </div>
 
@@ -252,6 +265,7 @@
         <div class="field"><label>单笔止损(元,0=不限)</label><input type="number" id="fLoss" min="0" step="50"></div>
         <div class="field"><label>单日停手(元)</label><input type="number" id="fDay" min="0" step="100"></div>
       </div>
+      <div class="field"><label>信号冷却(分钟,0=关)</label><input type="number" id="fCool" min="0" step="1"></div>
       <div class="field"><label>数据刷新频率</label>
         <select id="fRefresh">
           <option value="10">10 秒</option>
@@ -311,8 +325,18 @@ var COMMON = [
   {name:"沪锌",  letter:"ZN", mult:5,  fee:3,  dec:0},   {name:"沪银",  letter:"AG", mult:15, fee:6,  dec:0}
 ];
 
+/* 2026年法定节假日休市日(仅列落在周一~周五的，周末已自动休市；依据上期所《2026年休市安排》/国务院放假通知核对) */
+var HOLIDAYS=[
+ "2026-01-01","2026-01-02",
+ "2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-23",
+ "2026-04-06",
+ "2026-05-01","2026-05-04","2026-05-05",
+ "2026-06-19",
+ "2026-09-25",
+ "2026-10-01","2026-10-02","2026-10-05","2026-10-06","2026-10-07"
+];
 var DEF_CONF = {
-  capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true, refresh:30, sound:true, notif:false,
+  capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true, refresh:30, sound:true, notif:false, coolDown:5,
   syms:[]
 };
 /* 空页面快速添加的常用品种 */
@@ -353,6 +377,7 @@ function loadConf(){
         if(c.refresh===undefined) c.refresh=30;
         if(c.sound===undefined) c.sound=true;
         if(c.notif===undefined) c.notif=false;
+        if(c.coolDown===undefined) c.coolDown=5;
         out=c;
       }
     }
@@ -373,8 +398,8 @@ function rebuild(){
                mult:Number(sym.mult)||1, fee:Number(sym.fee)||1, dec:Number(sym.dec)||0};
     STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/CFG[code].mult*100)/100 : null;
     state[code]={price:null,vwap:null,prev:null,chgPct:null,vol:null,oi:null,
-      hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null,
-      minline:[], daily:null, chartMode:"min", kp:"5m", folded:window.innerWidth<720, hoverT:-1, fail:false};
+      hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null, cooldownUntil:0,
+      minline:[], chartMode:"min", kp:"5m", folded:window.innerWidth<720, hoverT:-1, fail:false, ok:false, volRatio:null, devPct:null};
   });
   document.getElementById("headMeta").innerHTML = headMetaHtml();
 }
@@ -429,7 +454,7 @@ function beginRound(){
   });
 }
 function applyMinline(code,arr){
-  var st=state[code], n=arr.length; st.fail=false;
+  var st=state[code], n=arr.length; st.fail=false; st.ok=true;
   st.minline=arr;
   st.price=parseFloat(arr[n-1][1]);
   st.oi=parseInt(arr[n-1][4],10);
@@ -445,20 +470,26 @@ function applyMinline(code,arr){
   }
   st.high= hi===-Infinity? null : hi;
   st.low= lo===Infinity? null : lo;
-  st.chgAmt= st.prev? st.price-st.prev : null;
   st.vwap=v>0? pv/v : null;
   st.vol=Math.round(v);
+  /* 量能比：最近10分钟均量 ÷ 全天平均每分钟量(放量>1.3, 缩量<0.7) */
+  var n2=arr.length, win=Math.min(10,n2), recent=0;
+  for(var i2=n2-win;i2<n2;i2++) recent+=(parseFloat(arr[i2][3])||0);
+  st.volRatio = (n2>0 && v/n2>0) ? recent/(win*(v/n2)) : 1;
   st.chgPct=st.prev? (st.price-st.prev)/st.prev*100 : null;
+  settleVerify();
 }
 var dayStopped=false, dayRealized=0, dayRealizedDate=todayStr();   // 单日停手: 当日累计已实现亏损达上限则当天不再发操作信号
 function checkNewDay(){
   var t=todayStr();
-  if(t!==dayRealizedDate){ dayRealizedDate=t; logs=[]; logDate=t; dayRealized=0; dayStopped=false; saveLog(); }
+  if(t!==dayRealizedDate){ dayRealizedDate=t; logs=[]; logDate=t; dayRealized=0; dayStopped=false; saveLog();
+    VER.w=[]; saveVer(); }   // 换交易日：丢弃还没验证完的信号(隔夜价不能代表"开仓后5分钟"，避免污染统计)
 }
 function openPos(code,st,side){
   st.closedPnl=null;
   st.hold=side; st.entry=st.price; st.entryTime=new Date();
   st.stop = STOP_PTS[code]!=null ? (side==="多"? st.price-STOP_PTS[code] : st.price+STOP_PTS[code]) : null;
+  pushVerify(code,st,side);
 }
 function closePos(code,st){
   st.closedPnl=null;
@@ -470,11 +501,14 @@ function closePos(code,st){
     if(CONF.maxDayLoss>0 && dayRealized<=-CONF.maxDayLoss) dayStopped=true;
   }
   st.hold="无"; st.entry=null; st.entryTime=null; st.stop=null;
+  // 平仓后进入信号冷却期(防均价线附近来回信号)；设0=不冷却
+  if(CONF.coolDown>0) st.cooldownUntil = Date.now()+CONF.coolDown*60000;
 }
 function computeSignal(code){
   var st=state[code];
   if(st.price==null||st.vwap==null){ st.lastDir="--"; return {dir:"--",event:null}; }
   var dev=st.vwap? Math.abs(st.price-st.vwap)/st.vwap : 1;
+  st.devPct = dev*100;
   var dir = dev<BUFFER? "观望" : (st.price>=st.vwap? "多":"空");
   var lastDir=st.lastDir; st.lastDir=dir;
   var event=null;
@@ -497,8 +531,8 @@ function computeSignal(code){
   // 3) 单日停手(设0=不限): 已达当日亏损上限, 当天不再发操作信号
   if(dayStopped) return {dir:dir,event:null};
   // 4) 开仓信号(平仓统一走均价强平)
-  if(dir==="多" && lastDir!=="多" && st.hold==="无"){ event="开多"; openPos(code,st,"多"); }
-  else if(dir==="空" && lastDir!=="空" && st.hold==="无"){ event="开空"; openPos(code,st,"空"); }
+  if(lastDir!=null && dir==="多" && lastDir!=="多" && st.hold==="无" && Date.now()>=st.cooldownUntil){ event="开多"; openPos(code,st,"多"); }
+  else if(lastDir!=null && dir==="空" && lastDir!=="空" && st.hold==="无" && Date.now()>=st.cooldownUntil){ event="开空"; openPos(code,st,"空"); }
   return {dir:dir,event:event};
 }
 
@@ -506,6 +540,10 @@ function computeSignal(code){
 var lastFull=new Date();   // 最后更新时间(初始=页面打开时刻)，空状态也显示
 function finishRound(){ checkNewDay(); lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
+/* 信号强弱：按现价偏离当日均价的幅度分级(离得越远越强) */
+function strengthTag(st){ if(st.devPct==null) return ""; return st.devPct<0.3?"弱":(st.devPct>1.0?"强":"中"); }
+/* 量能：最近10分钟均量对比全天平均(放量>1.3, 缩量<0.7) */
+function volTag(st){ if(st.volRatio==null) return ""; return st.volRatio>=1.3?"放量":(st.volRatio<=0.7?"缩量":"平量"); }
 function decOf(code){ var cfg=CFG[code]; return (cfg && cfg.dec!=null)? cfg.dec : 0; }
 function pfmt(code,v){ if(v==null) return "—"; return v.toFixed(decOf(code)); }
 /* 金额千分位显示 */
@@ -626,7 +664,7 @@ function drawMin(cv,st){
   // 现价线(白)
   ctx.strokeStyle="#e8edf5"; ctx.lineWidth=1.5;
   ctx.beginPath();
-    for(var i=0;i<price.length;i++){ var px=x(i),py=y(price[i]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+  for(var i=0;i<price.length;i++){ var px=x(i),py=y(price[i]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
   ctx.stroke();
   // 量柱
   var volArr=[], maxV=1;
@@ -733,7 +771,7 @@ function drawK(cv,st,period){
 function render(){
   var grid=document.getElementById("grid");
   document.getElementById("updateTime").textContent =
-    "更新 "+new Date(lastFull).toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})+
+    "更新 "+bjTime(lastFull).toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})+
     (REFRESH===0? " · 手动模式" : "");
   document.getElementById("headMeta").innerHTML = headMetaHtml();
   if(!SYMS.length){
@@ -755,11 +793,11 @@ function render(){
       st.sigPulse=true; setTimeout(function(){ st.sigPulse=false; render(); },2400);
       notify(cfg.name+" "+event, "现价"+pfmt(code,st.price)+(st.stop?"  止损"+pfmt(code,st.stop):""));
     }
-    var badgeText, badgeClass;
+    var badgeText, badgeClass, strg=(st.hold==="无" && dir!=="观望")? strengthTag(st) : "";
     if(st.hold==="多"){ badgeText="持多"; badgeClass="long"; }
     else if(st.hold==="空"){ badgeText="持空"; badgeClass="short"; }
-    else if(dir==="多"){ badgeText="多"; badgeClass="long"; }
-    else if(dir==="空"){ badgeText="空"; badgeClass="short"; }
+    else if(dir==="多"){ badgeText="多"+(strg?"·"+strg:""); badgeClass="long"; }
+    else if(dir==="空"){ badgeText="空"+(strg?"·"+strg:""); badgeClass="short"; }
     else { badgeText="观望"; badgeClass="flat"; }
     var chg=st.chgPct;
     var chgTxt=chg==null? "—" : (chg>0?"+"+chg.toFixed(2)+"%":chg.toFixed(2)+"%");
@@ -775,16 +813,18 @@ function render(){
       } else {
         pnlTxt='<div class="pnl '+pcls+'">盈亏 <b class="pv">'+(pnl>=0?"+":"")+nf(Math.round(pnl))+'</b> 元'+
           '<span class="pmeta">开仓 <span class="ePrice" title="点我改开仓价" onclick="editEntry(\''+code+'\')">'+pfmt(code,st.entry)+'</span>'+
-          (st.entryTime? " · "+st.entryTime.toLocaleTimeString("zh-CN",{hour12:false}) : "")+
+          (st.entryTime? " · "+bjTime(st.entryTime).toLocaleTimeString("zh-CN",{hour12:false}) : "")+
           ' · 扣手续费'+cfg.fee+'元</span></div>';
       }
     }
-    var tip;
-    if(event) tip = "信号：现价"+pfmt(code,st.price)+" "+event;
-    else if(st.hold==="多") tip="持多中，现价触碰均价("+pfmt(code,st.vwap)+")即强平";
-    else if(st.hold==="空") tip="持空中，现价触碰均价("+pfmt(code,st.vwap)+")即强平";
-    else if(dir==="多") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")上方，偏多";
-    else if(dir==="空") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")下方，偏空";
+    var tip, str=(st.devPct!=null)?strengthTag(st):"";
+    var devS = str? "，偏离"+st.devPct.toFixed(1)+"%强度"+str : "";
+    var volTxt = volTag(st); var volS = volTxt? "，"+volTxt : "";
+    if(event) tip = "信号：现价"+pfmt(code,st.price)+" "+event+devS+volS;
+    else if(st.hold==="多") tip="持多中，现价触碰均价("+pfmt(code,st.vwap)+")即强平"+devS;
+    else if(st.hold==="空") tip="持空中，现价触碰均价("+pfmt(code,st.vwap)+")即强平"+devS;
+    else if(dir==="多") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")上方偏多"+devS+volS;
+    else if(dir==="空") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")下方偏空"+devS+volS;
     else tip="现价贴着均价("+(st.vwap!=null?pfmt(code,st.vwap):"—")+")，方向不明";
     var card=document.createElement("div");
     card.className="card"+(st.sigPulse?" sig-pulse":"")+(st.folded?"":" open");
@@ -817,14 +857,28 @@ function render(){
       '</div>'+
       '<canvas class="chart" data-code="'+code+'"></canvas>'+
       '</div>'+
-      '<div class="note'+(event?" hot":"")+(st.fail?" fail":"")+'">'+(st.fail&&!event?"行情获取失败，自动重试中":tip)+'</div>';
+      '<div class="note'+(event?" hot":"")+(st.fail?" fail":"")+'">'+((st.fail&&!event)? (st.ok? "行情中断，显示上次数据，自动重试中":"行情获取失败，自动重试中") : tip)+'</div>';
     grid.appendChild(card);
   });
   grid.querySelectorAll("canvas.chart").forEach(function(cv){ drawChart(cv); });
 }
 
 /* ================= 今日信号记录 ================= */
-function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+/* 交易时段统一用北京时间(UTC+8)判定与显示，避免用户所在地时区差导致跨天/时间错位 */
+function bjTime(d){ var dt = d instanceof Date ? d : new Date(d==null?Date.now():d); return new Date(dt.getTime()+(dt.getTimezoneOffset()+480)*60000); }
+/* 北京时间各字段(与运行环境时区无关) */
+function bjParts(now){
+  var base = now instanceof Date ? now : new Date(now==null?Date.now():now);
+  var u=new Date(base.getTime());
+  var h=(u.getUTCHours()+8)%24, off=(u.getUTCHours()+8)>=24?1:0;
+  var nd=new Date(u.getTime()+off*86400000);
+  return {y:nd.getUTCFullYear(), m:nd.getUTCMonth()+1, d:nd.getUTCDate(), hour:h};
+}
+function fmtYMD(d){ return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"); }
+function isTradingDay(d){ var w=d.getUTCDay(); if(w===0||w===6) return false; return HOLIDAYS.indexOf(fmtYMD(d))===-1; }
+function nextTradingDay(d){ while(!isTradingDay(d)){ d=new Date(d.getTime()+86400000); } return fmtYMD(d); }
+/* "今日"=当前时刻归属的交易日标签(以日盘日期为准)：夜盘(21点后)归下一交易日，自动跳过周末与节假日 */
+function todayStr(){ var p=bjParts(); var d=new Date(Date.UTC(p.y,p.m-1,p.d)); if(p.hour>=21){ d=new Date(d.getTime()+86400000); } return nextTradingDay(d); }
 var logs=[], logDate="";
 /* 日志与今日累计存本地：关掉/重开不丢，但每天自动清理一次 */
 function saveLog(){
@@ -848,7 +902,7 @@ function savePos(){
   var p={};
   SYMS.forEach(function(code){
     var st=state[code];
-    p[code]={h:st.hold, e:st.entry, t:st.entryTime?st.entryTime.getTime():null, s:st.stop, d:st.lastDir};
+    p[code]={h:st.hold, e:st.entry, t:st.entryTime?st.entryTime.getTime():null, s:st.stop, d:st.lastDir, cd:st.cooldownUntil||0};
   });
   try{ localStorage.setItem(POSKEY, JSON.stringify({date:todayStr(), p:p})); }catch(e){}
 }
@@ -865,6 +919,7 @@ function loadPos(){
         st.hold=q.h; st.entry=q.e; st.stop=q.s;
         st.entryTime = q.t? new Date(q.t) : null;
         st.lastDir = q.d || (q.h==="多"?"多":"空");
+        st.cooldownUntil = q.cd || 0;
       }
     });
   }catch(e){}
@@ -872,7 +927,7 @@ function loadPos(){
 function addLog(code,name,event,st){
   var t=todayStr();
   if(logDate!==t){ logs=[]; logDate=t; }
-  logs.push({t:new Date().toLocaleTimeString("zh-CN",{hour12:false}),name:name,code:code,event:event,
+  logs.push({t:bjTime().toLocaleTimeString("zh-CN",{hour12:false}),name:name,code:code,event:event,
              price:st.price, stop:st.stop, pnl:st.closedPnl});
   if(logs.length>40) logs.shift();
   saveLog(); savePos();
@@ -901,6 +956,54 @@ function focusCode(code){
   if(state[code].folded) toggleFold(code);
   card.scrollIntoView({behavior:"smooth",block:"start"});
   card.classList.add("sig-pulse"); setTimeout(function(){ card.classList.remove("sig-pulse"); },900);
+}
+/* ============ 信号验证(强弱/量能回溯) ============ */
+/* 目的：验证"强/中/弱 + 放/平/缩量"这套判断靠不靠谱。
+   每次开多/开空时记录当时的强度+量能，VERWIN分钟后回头看价格是否真朝信号方向走
+   (开多看涨、开空看跌)，按组统计命中率。数据存本地，跑几天就能看出阈值准不准。 */
+var VERWIN=5;   // 验证窗口(分钟)：开仓后几分钟回头看
+var VER={ w:[], s:{强:{ok:0,no:0},中:{ok:0,no:0},弱:{ok:0,no:0}}, v:{放量:{ok:0,no:0},平量:{ok:0,no:0},缩量:{ok:0,no:0}} };
+function saveVer(){ try{ localStorage.setItem("futuresSignalVerifyV2", JSON.stringify(VER)); }catch(e){} }
+function loadVer(){ try{ var o=JSON.parse(localStorage.getItem("futuresSignalVerifyV2")); if(o&&o.w) VER=o; }catch(e){} }
+function pushVerify(code,st,side){
+  VER.w.push({ts:Date.now(), code:code, dir:side, price:st.price, str:strengthTag(st)||"", vol:volTag(st)||""});
+  saveVer();
+}
+function settleVerify(){
+  if(!VER.w.length) return;
+  var now=Date.now(), keep=[], changed=false;
+  for(var i=0;i<VER.w.length;i++){
+    var it=VER.w[i], st=state[it.code];
+    if(now-it.ts >= VERWIN*60000 && st && st.price!=null){
+      changed=true;
+      var ok = it.dir==="多" ? st.price>it.price : st.price<it.price;
+      var g=VER.s[it.str]; if(g){ ok? g.ok++ : g.no++; }
+      var g2=VER.v[it.vol]; if(g2){ ok? g2.ok++ : g2.no++; }
+    } else { keep.push(it); }
+  }
+  if(changed){ VER.w=keep; saveVer(); renderVer(); }
+}
+function hit(a){ var n=a.ok+a.no; return n? Math.round(a.ok/n*100)+"%" : "—"; }
+function clearVer(){ VER.w=[]; VER.s={强:{ok:0,no:0},中:{ok:0,no:0},弱:{ok:0,no:0}}; VER.v={放量:{ok:0,no:0},平量:{ok:0,no:0},缩量:{ok:0,no:0}}; saveVer(); renderVer(); }
+function renderVer(){
+  var el=document.getElementById("verBox"); if(!el) return;
+  var n=0, k; for(k in VER.s) n+=VER.s[k].ok+VER.s[k].no;
+  function line(lab,g){ return '<div class="vline"><span class="vlab">'+lab+'</span><span class="vval">'+g.ok+'/'+(g.ok+g.no)+'</span><span class="vhit">'+hit(g)+'</span></div>'; }
+  el.innerHTML =
+    '<div class="vhd"><span>信号验证</span><span class="vdesc">开多/开空后'+VERWIN+'分钟看方向对不对</span>'+
+    '<button type="button" class="btn clearLogBtn" onclick="clearVer()">清空验证</button></div>'+
+    '<div class="vbody"><div class="vline vtotal">累计共 <b>'+n+'</b> 次信号</div>'+
+    line("强度·强",VER.s["强"])+line("强度·中",VER.s["中"])+line("强度·弱",VER.s["弱"])+
+    line("量能·放",VER.v["放量"])+line("量能·平",VER.v["平量"])+line("量能·缩",VER.v["缩量"])+
+    '<div class="vnote">命中＝开多后涨 / 开空后跌。攒几天数据，就能看出"强·放量"是不是真的更准。</div></div>';
+}
+/* 休市表过期自检：当前年份若不在休市表里(跨年后)，页面顶部亮黄条提醒更新 */
+function checkHoliday(){
+  var el=document.getElementById("holidayWarn"); if(!el) return;
+  var p=bjParts(), y=String(p.y), hit=false;
+  for(var i=0;i<HOLIDAYS.length;i++) if(HOLIDAYS[i].indexOf(y+"-")===0){ hit=true; break; }
+  el.style.display = hit ? "none" : "";
+  el.innerHTML = hit ? "" : "当前是"+p.y+"年，节假日休市表还是去年(2026)的，交易日判断可能不准——请联系作者更新休市表。";
 }
 /* 手动清空今日记录：只清当天记录和累计；不动持仓，也不解除"单日停手"(风控状态) */
 function clearLog(){
@@ -994,6 +1097,7 @@ function openSet(){
   document.getElementById("fCap").value=CONF.capital;
   document.getElementById("fLoss").value=CONF.maxLoss;
   document.getElementById("fDay").value=CONF.maxDayLoss;
+  document.getElementById("fCool").value=(CONF.coolDown!=null?CONF.coolDown:5);
   document.getElementById("fShowPnl").checked = CONF.showPnl!==false;
   document.getElementById("fRefresh").value = (CONF.refresh!=null?CONF.refresh:30);
   document.getElementById("fSound").checked = (CONF.sound!==false);
@@ -1103,6 +1207,8 @@ document.getElementById("saveSet").addEventListener("click",function(){
   CONF.capital=Number(document.getElementById("fCap").value)||DEF_CONF.capital;
   CONF.maxLoss=Number(document.getElementById("fLoss").value)||DEF_CONF.maxLoss;
   CONF.maxDayLoss=Number(document.getElementById("fDay").value)||DEF_CONF.maxDayLoss;
+  CONF.coolDown=Number(document.getElementById("fCool").value);
+  if(isNaN(CONF.coolDown)||CONF.coolDown<0) CONF.coolDown=0;
   CONF.showPnl=document.getElementById("fShowPnl").checked;
   CONF.refresh = Number(document.getElementById("fRefresh").value);
   if(isNaN(CONF.refresh) || CONF.refresh==null) CONF.refresh=30;
@@ -1191,6 +1297,9 @@ initProbe();
 loadLog();
 loadPos();
 renderLog();
+loadVer();
+renderVer();
+checkHoliday();
 syncBtnText();
 syncManualBtn();
 beginRound();
