@@ -193,25 +193,25 @@
 "use strict";
 /* ================= 常用品种库（乘数与手续费按交易所标准，手续费可在设置里改） ================= */
 var COMMON = [
-  {name:"黄金",  letter:"AU", mult:1000, fee:10}, {name:"原油",  letter:"SC", mult:1000, fee:20},
-  {name:"玻璃",  letter:"FG", mult:20, fee:6},    {name:"螺纹钢",letter:"RB", mult:10, fee:4},
-  {name:"PVC",   letter:"V",  mult:5,  fee:1},    {name:"甲醇",  letter:"MA", mult:10, fee:1},
-  {name:"PTA",   letter:"TA", mult:5,  fee:3},    {name:"乙二醇",letter:"EG", mult:10, fee:3},
-  {name:"纯碱",  letter:"SA", mult:20, fee:4},    {name:"尿素",  letter:"UR", mult:20, fee:5},
-  {name:"铁矿",  letter:"I",  mult:100,fee:8},    {name:"焦炭",  letter:"J",  mult:100, fee:15},
-  {name:"焦煤",  letter:"JM", mult:60, fee:12},   {name:"豆粕",  letter:"M",  mult:10, fee:1.5},
-  {name:"玉米",  letter:"C",  mult:10, fee:1.2},  {name:"棉花",  letter:"CF", mult:5,  fee:4.3},
-  {name:"白糖",  letter:"SR", mult:10, fee:3},    {name:"豆油",  letter:"Y",  mult:10, fee:2.5},
-  {name:"橡胶",  letter:"RU", mult:10, fee:4.5},  {name:"塑料",  letter:"L",  mult:5,  fee:1},
-  {name:"沪铜",  letter:"CU", mult:5,  fee:18},   {name:"沪铝",  letter:"AL", mult:5,  fee:3},
-  {name:"沪锌",  letter:"ZN", mult:5,  fee:3},    {name:"沪银",  letter:"AG", mult:15, fee:6}
+  {name:"黄金",  letter:"AU", mult:1000, fee:10, dec:2}, {name:"原油",  letter:"SC", mult:1000, fee:20, dec:1},
+  {name:"玻璃",  letter:"FG", mult:20, fee:6,  dec:0},   {name:"螺纹钢",letter:"RB", mult:10, fee:4,  dec:0},
+  {name:"PVC",   letter:"V",  mult:5,  fee:1,  dec:0},   {name:"甲醇",  letter:"MA", mult:10, fee:1,  dec:0},
+  {name:"PTA",   letter:"TA", mult:5,  fee:3,  dec:0},   {name:"乙二醇",letter:"EG", mult:10, fee:3,  dec:0},
+  {name:"纯碱",  letter:"SA", mult:20, fee:4,  dec:0},   {name:"尿素",  letter:"UR", mult:20, fee:5,  dec:0},
+  {name:"铁矿",  letter:"I",  mult:100,fee:8,  dec:0},   {name:"焦炭",  letter:"J",  mult:100, fee:15, dec:0},
+  {name:"焦煤",  letter:"JM", mult:60, fee:12, dec:0},   {name:"豆粕",  letter:"M",  mult:10, fee:1.5,dec:0},
+  {name:"玉米",  letter:"C",  mult:10, fee:1.2,dec:0},   {name:"棉花",  letter:"CF", mult:5,  fee:4.3,dec:0},
+  {name:"白糖",  letter:"SR", mult:10, fee:3,  dec:0},   {name:"豆油",  letter:"Y",  mult:10, fee:2.5,dec:0},
+  {name:"橡胶",  letter:"RU", mult:10, fee:4.5,dec:0},   {name:"塑料",  letter:"L",  mult:5,  fee:1,  dec:0},
+  {name:"沪铜",  letter:"CU", mult:5,  fee:18, dec:0},   {name:"沪铝",  letter:"AL", mult:5,  fee:3,  dec:0},
+  {name:"沪锌",  letter:"ZN", mult:5,  fee:3,  dec:0},   {name:"沪银",  letter:"AG", mult:15, fee:6,  dec:0}
 ];
 
 var DEF_CONF = {
   capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true,
   syms:[
-    {name:"黄金", letter:"AU", mult:1000, fee:10, month:"0", main:false},
-    {name:"原油", letter:"SC", mult:1000, fee:20, month:"0", main:false}
+    {name:"黄金", letter:"AU", mult:1000, fee:10, dec:2, month:"0", main:false},
+    {name:"原油", letter:"SC", mult:1000, fee:20, dec:1, month:"0", main:false}
   ]
 };
 var CONF = loadConf();
@@ -226,6 +226,10 @@ function loadConf(){
       var c=JSON.parse(s);
       if(c && c.syms && c.syms.length){
         c.syms.forEach(function(sym){
+          if(sym.dec==null){
+            var md=COMMON.find(function(o){return o.letter===sym.letter;});
+            sym.dec = md? md.dec : 0;
+          }
           if(sym.fee==null){
             var m=COMMON.find(function(o){return o.letter===sym.letter;});
             sym.fee = m? m.fee : 1;
@@ -237,7 +241,7 @@ function loadConf(){
         defs.forEach(function(d){
           if(!have[d.letter]){
             var m=COMMON.find(function(o){return o.letter===d.letter;});
-            c.syms.unshift({name:d.name, letter:d.letter, mult:m.mult, fee:m.fee, month:"0", main:false});
+            c.syms.unshift({name:d.name, letter:d.letter, mult:m.mult, fee:m.fee, dec:m.dec, month:"0", main:false});
           }
         });
         if(c.showPnl===undefined) c.showPnl=true;
@@ -258,8 +262,8 @@ function rebuild(){
     var code=codeOf(sym);
     SYMS.push(code);
     CFG[code]={name:sym.name||code, code:code, letter:sym.letter, month:sym.month,
-               mult:Number(sym.mult)||1, fee:Number(sym.fee)||1, main:!!sym.main};
-    STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/(CFG[code].mult)) : null;
+               mult:Number(sym.mult)||1, fee:Number(sym.fee)||1, dec:Number(sym.dec)||0, main:!!sym.main};
+    STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/CFG[code].mult*100)/100 : null;
     state[code]={price:null,vwap:null,prev:null,chgPct:null,vol:null,oi:null,
       hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null,
       minline:[], daily:null, chartMode:"min", kp:"5m"};
@@ -340,7 +344,7 @@ var dayStopped=false, dayRealized=0;
 function openPos(code,st,side){
   st.closedPnl=null;
   st.hold=side; st.entry=st.price; st.entryTime=new Date();
-  st.stop = STOP_PTS[code]!=null ? (side==="多"? Math.round(st.price-STOP_PTS[code]) : Math.round(st.price+STOP_PTS[code])) : null;
+  st.stop = STOP_PTS[code]!=null ? (side==="多"? st.price-STOP_PTS[code] : st.price+STOP_PTS[code]) : null;
 }
 function closePos(code,st){
   st.closedPnl=null;
@@ -384,6 +388,8 @@ function computeSignal(code){
 var lastFull=null;
 function finishRound(){ lastFull=Date.now(); render(); setNet(true); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
+function decOf(code){ var cfg=CFG[code]; return (cfg && cfg.dec!=null)? cfg.dec : 0; }
+function pfmt(code,v){ if(v==null) return "—"; return v.toFixed(decOf(code)); }
 var KPERIODS=[["1m","1分"],["5m","5分"],["15m","15分"],["30m","30分"],["60m","60分"]];
 function toggleChart(code,m){
   if(!state[code]) return;
@@ -403,8 +409,8 @@ function saveEntry(code,v){
   if(isFinite(n)&&n>0){
     st.entry=n;
     if(STOP_PTS[code]!=null){
-      if(st.hold==="多") st.stop=Math.round(n-STOP_PTS[code]);
-      else if(st.hold==="空") st.stop=Math.round(n+STOP_PTS[code]);
+      if(st.hold==="多") st.stop=n-STOP_PTS[code];
+      else if(st.hold==="空") st.stop=n+STOP_PTS[code];
     }
   }
   st.editingEntry=false; render();
@@ -524,7 +530,7 @@ function render(){
       addLog(code,cfg.name,event,st);
       beep(event.indexOf("开")===0?3:2);
       st.sigPulse=true; setTimeout(function(){ st.sigPulse=false; render(); },2400);
-      notify(cfg.name+" "+event, "现价"+st.price.toFixed(0)+(st.stop?"  止损"+st.stop.toFixed(0):""));
+      notify(cfg.name+" "+event, "现价"+pfmt(code,st.price)+(st.stop?"  止损"+pfmt(code,st.stop):""));
     }
     var badgeText, badgeClass;
     if(st.hold==="多"){ badgeText="持多"; badgeClass="long"; }
@@ -541,40 +547,40 @@ function render(){
       var pcls = pnl>=0?"up":"down";
       if(st.editingEntry){
         pnlTxt='<div class="pnl"><span style="color:var(--muted);font-size:11px">开仓价</span>'+
-          '<input class="entryEdit" type="number" value="'+st.entry.toFixed(0)+'" onchange="saveEntry(\''+code+'\',this.value)"></div>';
+          '<input class="entryEdit" type="number" value="'+pfmt(code,st.entry)+'" onchange="saveEntry(\''+code+'\',this.value)"></div>';
       } else {
-        pnlTxt='<div class="pnl '+pcls+'">开仓 '+st.entry.toFixed(0)+
+        pnlTxt='<div class="pnl '+pcls+'">开仓 '+pfmt(code,st.entry)+
           ' <button class="adj" type="button" onclick="editEntry(\''+code+'\')">调</button>'+
           (st.entryTime? " · "+st.entryTime.toLocaleTimeString("zh-CN",{hour12:false}) : "")+
           ' · 盈亏 '+(pnl>=0?"+":"")+Math.round(pnl)+' 元（扣手续费'+cfg.fee+'元）</div>';
       }
     }
     var tip;
-    if(event) tip = "信号：现价"+st.price.toFixed(0)+" "+event;
-    else if(st.hold==="多") tip="持多中，现价触碰均价("+st.vwap.toFixed(0)+")即强平";
-    else if(st.hold==="空") tip="持空中，现价触碰均价("+st.vwap.toFixed(0)+")即强平";
-    else if(dir==="多") tip="现价"+st.price.toFixed(0)+"在均价("+st.vwap.toFixed(0)+")上方，偏多";
-    else if(dir==="空") tip="现价"+st.price.toFixed(0)+"在均价("+st.vwap.toFixed(0)+")下方，偏空";
-    else tip="现价贴着均价("+(st.vwap!=null?st.vwap.toFixed(0):"—")+")，方向不明";
+    if(event) tip = "信号：现价"+pfmt(code,st.price)+" "+event;
+    else if(st.hold==="多") tip="持多中，现价触碰均价("+pfmt(code,st.vwap)+")即强平";
+    else if(st.hold==="空") tip="持空中，现价触碰均价("+pfmt(code,st.vwap)+")即强平";
+    else if(dir==="多") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")上方，偏多";
+    else if(dir==="空") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")下方，偏空";
+    else tip="现价贴着均价("+(st.vwap!=null?pfmt(code,st.vwap):"—")+")，方向不明";
     var card=document.createElement("div");
     card.className="card"+(cfg.main?" main":"")+(st.sigPulse?" sig-pulse":"");
     card.innerHTML=
       '<div class="cardtop"><span class="cname">'+cfg.name+'</span><span class="ctag">'+code+monthTag(cfg.letter,cfg.month)+(cfg.main?" · 主线":" · 辅助")+'</span>'+
       '<span class="sig '+badgeClass+'">'+badgeText+'</span></div>'+
-      '<div class="price '+priceCls(chg)+'">'+(st.price!=null?st.price.toFixed(0):"—")+'</div>'+
+      '<div class="price '+priceCls(chg)+'">'+(st.price!=null?pfmt(code,st.price):"—")+'</div>'+
       '<div class="chg '+priceCls(chg)+'">'+chgTxt+'</div>'+
       pnlTxt+
       '<div class="kv">'+
-        '<div><span class="k">当日均价</span><span class="v">'+(st.vwap!=null?st.vwap.toFixed(0):"—")+'</span></div>'+
+        '<div><span class="k">当日均价</span><span class="v">'+(st.vwap!=null?pfmt(code,st.vwap):"—")+'</span></div>'+
         '<div><span class="k">成交量</span><span class="v">'+(st.vol!=null?(st.vol/10000).toFixed(1)+"万":"—")+'</span></div>'+
         '<div><span class="k">持仓量</span><span class="v">'+(st.oi!=null?(st.oi/10000).toFixed(1)+"万":"—")+'</span></div>'+
-        '<div><span class="k">止损</span><span class="v">'+(st.stop!=null?st.stop.toFixed(0):"—")+'</span></div>'+
+        '<div><span class="k">止损</span><span class="v">'+(st.stop!=null?pfmt(code,st.stop):"—")+'</span></div>'+
       '</div>'+
       '<div class="kv" style="margin-top:4px">'+
-        '<div><span class="k">今开</span><span class="v">'+(st.open!=null?st.open.toFixed(0):"—")+'</span></div>'+
-        '<div><span class="k">最高</span><span class="v">'+(st.high!=null?st.high.toFixed(0):"—")+'</span></div>'+
-        '<div><span class="k">最低</span><span class="v">'+(st.low!=null?st.low.toFixed(0):"—")+'</span></div>'+
-        '<div><span class="k">昨结</span><span class="v">'+(st.prev!=null?st.prev.toFixed(0):"—")+'</span></div>'+
+        '<div><span class="k">今开</span><span class="v">'+(st.open!=null?pfmt(code,st.open):"—")+'</span></div>'+
+        '<div><span class="k">最高</span><span class="v">'+(st.high!=null?pfmt(code,st.high):"—")+'</span></div>'+
+        '<div><span class="k">最低</span><span class="v">'+(st.low!=null?pfmt(code,st.low):"—")+'</span></div>'+
+        '<div><span class="k">昨结</span><span class="v">'+(st.prev!=null?pfmt(code,st.prev):"—")+'</span></div>'+
       '</div>'+
       '<div class="chartbar"><span class="tabs">'+
         '<button type="button" onclick="toggleChart(\''+code+'\',\'min\')"'+(st.chartMode!=="kline"?' class="on"':'')+'>分时</button>'+
@@ -613,7 +619,7 @@ function renderLog(){
     var pnlTxt = (l.pnl!=null) ? (' · 盈亏 '+(l.pnl>=0?"+":"")+l.pnl+'元') : "";
     return '<div class="logrow"><span class="logt">'+l.t+'</span><span class="logname">'+esc(l.name)+'</span>'+
       '<span class="'+cls+'">'+l.event+'</span>'+
-      '<span class="logp">'+l.code+' · 价 '+l.price.toFixed(0)+(l.stop?" · 止损 "+l.stop.toFixed(0):"")+pnlTxt+'</span></div>';
+      '<span class="logp">'+l.code+' · 价 '+pfmt(l.code,l.price)+(l.stop?" · 止损 "+pfmt(l.code,l.stop):"")+pnlTxt+'</span></div>';
   }).join("");
 }
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -718,7 +724,7 @@ function collectSyms(){
     var orig=CONF.syms[idx];
     if(!orig) return;
     out.push({name:name||orig.name, letter:orig.letter, month:orig.month,
-              mult:orig.mult, fee:orig.fee, main:r.querySelector(".sMain").checked});
+              mult:orig.mult, fee:orig.fee, dec:orig.dec, main:r.querySelector(".sMain").checked});
   });
   return out;
 }
@@ -739,7 +745,7 @@ document.getElementById("addComm").addEventListener("click",function(){
   var c=COMMON[Number(idx)];
   var code=c.letter+(month==="0"?"0":month);
   if(CONF.syms.some(function(s){ return codeOf(s)===code; })){ alert("这个合约已在列表里"); return; }
-  CONF.syms.push({name:c.name, letter:c.letter, mult:c.mult, fee:c.fee, month:month, main:false});
+  CONF.syms.push({name:c.name, letter:c.letter, mult:c.mult, fee:c.fee, dec:c.dec, month:month, main:false});
   renderSymList();
 });
 document.getElementById("addCustom").addEventListener("click",function(){
@@ -751,7 +757,8 @@ document.getElementById("addCustomOK").addEventListener("click",function(){
   var m=parseFloat(document.querySelector("#customRow .cMult").value)||0;
   var f=parseFloat(document.querySelector("#customRow .cFee").value)||0;
   if(!letter){ alert("请填品种字母，如 EG"); return; }
-  CONF.syms.push({name:n||letter, letter:letter, mult:m>0?m:1, fee:f>0?f:1, month:"0", main:false});
+  var mc=COMMON.find(function(o){return o.letter===letter;});
+  CONF.syms.push({name:n||letter, letter:letter, mult:m>0?m:(mc?mc.mult:1), fee:f>0?f:(mc?mc.fee:1), dec:mc?mc.dec:0, month:"0", main:false});
   renderSymList();
   document.querySelector("#customRow .cName").value="";
   document.querySelector("#customRow .cLetter").value="";
