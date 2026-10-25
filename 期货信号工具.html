@@ -99,6 +99,8 @@
     .statusbar{gap:8px}
     .statusbar .btn{padding:9px 15px;font-size:13px;min-height:40px;border-radius:9px}
     #notifBtn,#soundBtn,#pnlBtn,#refreshBtn{display:none}
+    /* 手动刷新模式下，手机端单独显示刷新按钮 */
+    body.manual #refreshBtn{display:inline-flex}
     .chartbar .tabs button{padding:8px 14px;font-size:12px;min-height:36px}
     .chartbar select{padding:7px 10px;font-size:12px;min-height:36px;border-radius:8px}
     .price{font-size:34px}
@@ -106,7 +108,10 @@
     .kv div .v{font-size:14px}
   }
   .logsec{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
-  .logsec h3{font-size:12px;color:var(--dim);letter-spacing:2px;margin-bottom:10px;font-weight:700}
+  .logsec h3{font-size:12px;color:var(--dim);letter-spacing:2px;margin-bottom:0;font-weight:700}
+  .loghdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .clearLogBtn{font-size:11px;padding:4px 10px;color:var(--muted)}
+  .clearLogBtn:hover{color:var(--up);border-color:var(--up)}
   .logrow{display:flex;gap:12px;align-items:baseline;font-size:12px;padding:6px 8px;color:var(--muted);border-radius:6px}
   .logrow:nth-child(odd){background:rgba(255,255,255,.02)}
   .logt{color:var(--dim);font-family:var(--mono)}
@@ -116,6 +121,16 @@
   .empty{font-size:12px;color:var(--dim);padding:6px 8px}
   .logsum{font-size:12px;color:var(--text);padding:6px 8px 2px;border-bottom:1px solid var(--line);margin-bottom:2px}
   .footer{margin-top:20px;font-size:11px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px;line-height:1.8}
+  /* 反馈区 */
+  .fbsection{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;
+    padding:12px 14px;background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line2);border-radius:10px;font-size:13px;color:var(--muted)}
+  .fbBtn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#3a2f16,#2a2210);
+    border:1px solid #66531f;color:#eecf7a;padding:6px 14px;border-radius:8px;font-size:13px;
+    text-decoration:none;cursor:pointer;font-family:var(--font);transition:border-color .15s}
+  .fbBtn:hover{border-color:#8a6f2a}
+  .fbBtn svg{width:15px;height:15px}
+  .fbNote{color:var(--dim)}
   /* 设置 */
   .mask{position:fixed;inset:0;background:rgba(5,8,12,.8);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;padding:14px}
   .mask.show{display:flex}
@@ -171,8 +186,20 @@
   <div class="grid" id="grid"></div>
 
   <div class="logsec">
-    <h3>今日信号记录</h3>
+    <div class="loghdr">
+      <h3>今日信号记录</h3>
+      <button type="button" class="btn clearLogBtn" onclick="clearLog()">清空今日记录</button>
+    </div>
     <div id="logList"><div class="empty">今天还没有信号</div></div>
+  </div>
+
+  <div class="fbsection">
+    <span>遇到问题、想提建议，或测试中发现不对的地方？</span>
+    <a class="fbBtn" href="https://github.com/KYC666/futures-signal-tool/issues/new" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 0-3.5 13.06L8 20l2-1.3A7 7 0 1 0 12 3z" stroke="#eecf7a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="12" r=".8" fill="#eecf7a"/><circle cx="12" cy="12" r=".8" fill="#eecf7a"/><circle cx="15" cy="12" r=".8" fill="#eecf7a"/></svg>
+      去 GitHub 提建议
+    </a>
+    <span class="fbNote">或直接加 QQ：99405711</span>
   </div>
 
   <div class="footer">
@@ -315,7 +342,7 @@ function rebuild(){
       minline:[], daily:null, chartMode:"min", kp:"5m", folded:window.innerWidth<720};
   });
   document.getElementById("headMeta").textContent =
-    "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元";
+    "资金"+nf(CONF.capital)+" · 单笔止损"+nf(CONF.maxLoss)+"元 · 单日停手"+nf(CONF.maxDayLoss)+"元";
 }
 
 /* ================= 音频 + 通知 ================= */
@@ -343,8 +370,8 @@ function notify(title,body){
 /* ================= 行情拉取(JSONP 分时) ================= */
 function loadScript(src,onload,onerr){
   var s=document.createElement("script"); s.src=src; s.async=true;
-  s.onload=function(){ if(onload)onload(); };
-  s.onerror=function(){ if(onerr)onerr(); };
+  s.onload=function(){ if(onload)onload(); if(s.parentNode)s.parentNode.removeChild(s); };
+  s.onerror=function(){ if(onerr)onerr(); if(s.parentNode)s.parentNode.removeChild(s); };
   document.head.appendChild(s);
 }
 function mlUrl(code){ return "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_k=/InnerFuturesNewService.getMinline?symbol="+code; }
@@ -387,7 +414,11 @@ function applyMinline(code,arr){
   st.vol=Math.round(v);
   st.chgPct=st.prev? (st.price-st.prev)/st.prev*100 : null;
 }
-var dayStopped=false, dayRealized=0;   // 单日停手: 当日累计已实现亏损达上限则当天不再发操作信号
+var dayStopped=false, dayRealized=0, dayRealizedDate=todayStr();   // 单日停手: 当日累计已实现亏损达上限则当天不再发操作信号
+function checkNewDay(){
+  var t=todayStr();
+  if(t!==dayRealizedDate){ dayRealizedDate=t; logs=[]; logDate=t; dayRealized=0; dayStopped=false; saveLog(); }
+}
 function openPos(code,st,side){
   st.closedPnl=null;
   st.hold=side; st.entry=st.price; st.entryTime=new Date();
@@ -437,10 +468,12 @@ function computeSignal(code){
 
 /* ================= 渲染 ================= */
 var lastFull=new Date();   // 最后更新时间(初始=页面打开时刻)，空状态也显示
-function finishRound(){ lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
+function finishRound(){ checkNewDay(); lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
 function decOf(code){ var cfg=CFG[code]; return (cfg && cfg.dec!=null)? cfg.dec : 0; }
 function pfmt(code,v){ if(v==null) return "—"; return v.toFixed(decOf(code)); }
+/* 金额千分位显示 */
+function nf(n){ return (n==null||isNaN(n)) ? "—" : Number(n).toLocaleString(); }
 var KPERIODS=[["1m","1分"],["5m","5分"],["15m","15分"],["30m","30分"],["60m","60分"]];
 function toggleChart(code,m){
   if(!state[code]) return;
@@ -464,7 +497,7 @@ function saveEntry(code,v){
       else if(st.hold==="空") st.stop=n+STOP_PTS[code];
     }
   }
-  st.editingEntry=false; render();
+  st.editingEntry=false; savePos(); render();
 }
 /* 用当天分时数据(1分钟/条)聚合出 N 分钟K线 */
 function aggMin(minline,n){
@@ -587,7 +620,7 @@ function render(){
     "更新 "+new Date(lastFull).toLocaleString("zh-CN",{hour12:false,month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})+
     (REFRESH===0? " · 手动模式" : "");
   document.getElementById("headMeta").textContent =
-    "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元"+(dayStopped?" · 已单日停手":"");
+    "资金"+nf(CONF.capital)+" · 单笔止损"+nf(CONF.maxLoss)+"元 · 单日停手"+nf(CONF.maxDayLoss)+"元"+(dayStopped?" · 已单日停手":"");
   if(!SYMS.length){
     grid.innerHTML='<div style="grid-column:1/-1;color:var(--dim);text-align:center;padding:34px 0 10px;font-size:14px;line-height:2">还没有监控合约<br>点右上角「设置」，自己添加品种和月份</div>'+
       '<div style="grid-column:1/-1;text-align:center;padding:0 0 18px"><div style="font-size:12px;color:var(--muted);margin-bottom:10px">或快速添加常用品种</div>'+
@@ -627,7 +660,7 @@ function render(){
         pnlTxt='<div class="pnl '+pcls+'">开仓 '+pfmt(code,st.entry)+
           ' <button class="adj" type="button" onclick="editEntry(\''+code+'\')">调</button>'+
           (st.entryTime? " · "+st.entryTime.toLocaleTimeString("zh-CN",{hour12:false}) : "")+
-          ' · 盈亏 '+(pnl>=0?"+":"")+Math.round(pnl)+' 元（扣手续费'+cfg.fee+'元）</div>';
+          ' · 盈亏 '+(pnl>=0?"+":"")+nf(Math.round(pnl))+' 元（扣手续费'+cfg.fee+'元）</div>';
       }
     }
     var tip;
@@ -677,29 +710,78 @@ function render(){
 /* ================= 今日信号记录 ================= */
 function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 var logs=[], logDate="";
+/* 日志与今日累计存本地：关掉/重开不丢，但每天自动清理一次 */
+function saveLog(){
+  try{ localStorage.setItem("futuresSignalLogV2", JSON.stringify({date:logDate,logs:logs,dayRealized:dayRealized,dayStopped:dayStopped})); }catch(e){}
+}
+function loadLog(){
+  try{
+    var s=localStorage.getItem("futuresSignalLogV2");
+    if(s){
+      var o=JSON.parse(s);
+      if(o && o.date===todayStr()){   // 只认今天的；跨天(非今天)就忽略=每天清一次
+        logs=Array.isArray(o.logs)?o.logs:[]; logDate=o.date;
+        dayRealized=o.dayRealized||0; dayStopped=!!o.dayStopped;
+      }
+    }
+  }catch(e){}
+}
+/* 持仓状态存本地：当天刷新/重开能接上(与日志一致)；跨天(非今天)=每天开盘清零 */
+var POSKEY="futuresSignalPosV2";
+function savePos(){
+  var p={};
+  SYMS.forEach(function(code){
+    var st=state[code];
+    p[code]={h:st.hold, e:st.entry, t:st.entryTime?st.entryTime.getTime():null, s:st.stop, d:st.lastDir};
+  });
+  try{ localStorage.setItem(POSKEY, JSON.stringify({date:todayStr(), p:p})); }catch(e){}
+}
+function loadPos(){
+  try{
+    var s=localStorage.getItem(POSKEY);
+    if(!s) return;
+    var o=JSON.parse(s);
+    if(!o || o.date!==todayStr()) return;   // 非今天=每天开盘清零，从空仓开始
+    var p=o.p||{};
+    SYMS.forEach(function(code){
+      var st=state[code], q=p[code];
+      if(q && q.h && q.h!=="无"){
+        st.hold=q.h; st.entry=q.e; st.stop=q.s;
+        st.entryTime = q.t? new Date(q.t) : null;
+        st.lastDir = q.d || (q.h==="多"?"多":"空");
+      }
+    });
+  }catch(e){}
+}
 function addLog(code,name,event,st){
   var t=todayStr();
   if(logDate!==t){ logs=[]; logDate=t; }
   logs.push({t:new Date().toLocaleTimeString("zh-CN",{hour12:false}),name:name,code:code,event:event,
              price:st.price, stop:st.stop, pnl:st.closedPnl});
   if(logs.length>40) logs.shift();
+  saveLog(); savePos();
   renderLog();
 }
 function renderLog(){
   var el=document.getElementById("logList");
   if(!logs.length){ el.innerHTML='<div class="empty">今天还没有信号</div>'; return; }
   var sum=Math.round(dayRealized);
-  var sumHtml='<div class="logsum">今日平仓累计：<b class="'+(sum>=0?"up":"down")+'">'+(sum>=0?"+":"")+sum+'元</b></div>';
+  var sumHtml='<div class="logsum">今日平仓累计：<b class="'+(sum>=0?"up":"down")+'">'+(sum>=0?"+":"")+nf(sum)+'元</b></div>';
   el.innerHTML= sumHtml + logs.map(function(l){
     var cls = (l.event==="开多"||l.event==="平多"||l.event==="止损平多"||l.event==="强平多") ? "log-up" :
               (l.event==="开空"||l.event==="平空"||l.event==="止损平空"||l.event==="强平空") ? "log-down" : "log-flat";
-    var pnlTxt = (l.pnl!=null) ? (' · 盈亏 '+(l.pnl>=0?"+":"")+l.pnl+'元') : "";
+    var pnlTxt = (l.pnl!=null) ? (' · 盈亏 '+(l.pnl>=0?"+":"")+nf(l.pnl)+'元') : "";
     return '<div class="logrow"><span class="logt">'+l.t+'</span><span class="logname">'+esc(l.name)+'</span>'+
       '<span class="'+cls+'">'+l.event+'</span>'+
       '<span class="logp">'+l.code+' · 价 '+pfmt(l.code,l.price)+(l.stop?" · 止损 "+pfmt(l.code,l.stop):"")+pnlTxt+'</span></div>';
   }).join("");
 }
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+/* 手动清空今日记录：只清当天记录和累计；不动持仓，也不解除"单日停手"(风控状态) */
+function clearLog(){
+  logs=[]; logDate=todayStr(); dayRealized=0;
+  saveLog(); renderLog();
+}
 
 /* ================= 网络/调度 ================= */
 function setNet(ok){
@@ -867,7 +949,7 @@ document.getElementById("saveSet").addEventListener("click",function(){
   REFRESH=(CONF.refresh>0?CONF.refresh:0)*1000;
   soundOn=CONF.sound!==false; notifOn=!!CONF.notif;
   if(notifOn && !notifGranted && "Notification" in window && Notification.permission==="granted") notifGranted=true;
-  syncBtnText();
+  syncBtnText(); syncManualBtn();
   saveConf(); rebuild(); renderLog();
   document.getElementById("mask").classList.remove("show");
   clearTimeout(timer); beginRound();
@@ -899,6 +981,8 @@ function refreshPnlBtn(){
   b.textContent = CFG.showPnl!==false ? "盈亏:开" : "盈亏:关";
   b.classList.toggle("off", CFG.showPnl===false);
 }
+/* 手动刷新模式下，手机端显示刷新按钮(REFRESH===0即手动) */
+function syncManualBtn(){ document.body.classList.toggle("manual", REFRESH===0); }
 function togglePnl(){
   CFG.showPnl = CFG.showPnl!==false ? false : true;
   CONF.showPnl = CFG.showPnl;
@@ -920,8 +1004,11 @@ function initProbe(){
   step();
 }
 initProbe();
+loadLog();
+loadPos();
 renderLog();
 syncBtnText();
+syncManualBtn();
 beginRound();
 </script>
 </body>
