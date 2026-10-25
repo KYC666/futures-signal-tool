@@ -82,6 +82,22 @@
   .chart.main{height:232px}
   .note{margin-top:10px;font-size:12px;color:var(--muted);padding:7px 10px;border-radius:7px;background:var(--panel);border:1px solid var(--line)}
   .note.hot{color:var(--gold);border-color:rgba(226,185,90,.35);font-weight:600;background:rgba(226,185,90,.06)}
+  .foldbtn{display:none;background:var(--panel);border:1px solid var(--line2);color:var(--muted);
+    border-radius:7px;padding:2px 9px;font-size:11px;cursor:pointer;font-family:var(--font);margin-left:6px;flex:none}
+  .foldbtn:hover{color:var(--gold);border-color:var(--gold)}
+  @media(max-width:719px){
+    .detail{display:none}
+    .card.open .detail{display:block}
+    .foldbtn{display:inline-flex;align-items:center;padding:7px 13px;font-size:12px;min-height:34px;min-width:56px;justify-content:center}
+    .statusbar{gap:8px}
+    .statusbar .btn{padding:9px 15px;font-size:13px;min-height:40px;border-radius:9px}
+    #notifBtn,#soundBtn,#pnlBtn,#refreshBtn{display:none}
+    .chartbar .tabs button{padding:8px 14px;font-size:12px;min-height:36px}
+    .chartbar select{padding:7px 10px;font-size:12px;min-height:36px;border-radius:8px}
+    .price{font-size:34px}
+    .sig{padding:5px 14px;font-size:13px}
+    .kv div .v{font-size:14px}
+  }
   .logsec{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
   .logsec h3{font-size:12px;color:var(--dim);letter-spacing:2px;margin-bottom:10px;font-weight:700}
   .logrow{display:flex;gap:12px;align-items:baseline;font-size:12px;padding:6px 8px;color:var(--muted);border-radius:6px}
@@ -132,6 +148,7 @@
     <div><h1>期货信号工具</h1><span class="sub">分时均线趋势 · 只报信号不下单</span></div>
     <div class="meta" id="headMeta"></div>
   </div>
+
   <div class="statusbar">
     <span id="netStatus"><span class="dot"></span>正在连接行情…</span>
     <span id="updateTime"></span>
@@ -142,16 +159,20 @@
     <button id="pnlBtn" class="btn" onclick="togglePnl()">盈亏:开</button>
     <button id="refreshBtn" class="btn">刷新</button>
   </div>
+
   <div class="grid" id="grid"></div>
+
   <div class="logsec">
     <h3>今日信号记录</h3>
     <div id="logList"><div class="empty">今天还没有信号</div></div>
   </div>
+
   <div class="footer">
     信号规则＝《分时均线趋势》：当日均价线 = 当日累计成交额÷成交量；现价≥均价看多，现价&lt;均价看空，贴着均价算观望。<br>
     开仓＝现价突破均价（开多/开空）；持仓中现价触碰分时均价线即强平（强平多/强平空），不自动反手。止损＝你设的单笔止损÷合约乘数，精确到1点（设0＝不限）。<br>
     设置里「左选品种、右选月份」：月份自动探测当前挂牌合约，主力连续会自动跟随主力月。数据来自新浪免费行情，连网即用；第一次用建议点一下页面启用提醒音。
   </div>
+
   <div class="mask" id="mask">
     <div class="panel">
       <h2>设置</h2>
@@ -161,7 +182,19 @@
         <div class="field"><label>单笔止损(元,0=不限)</label><input type="number" id="fLoss" min="0" step="50"></div>
         <div class="field"><label>单日停手(元)</label><input type="number" id="fDay" min="0" step="100"></div>
       </div>
-      <div class="optrow"><label class="chk"><input type="checkbox" id="fShowPnl"> 持仓显示盈亏（开仓价·开仓时间·盈利/亏损）</label></div>
+      <div class="field"><label>数据刷新频率</label>
+        <select id="fRefresh">
+          <option value="10">10 秒</option>
+          <option value="30" selected>30 秒（默认）</option>
+          <option value="60">60 秒</option>
+          <option value="0">手动（仅点刷新时更新）</option>
+        </select>
+      </div>
+      <div class="optrow">
+        <label class="chk"><input type="checkbox" id="fShowPnl"> 持仓显示盈亏</label>
+        <label class="chk"><input type="checkbox" id="fSound"> 提醒音</label>
+        <label class="chk"><input type="checkbox" id="fNotif"> 系统通知</label>
+      </div>
       <div class="symsec"><b>监控合约</b></div>
       <div class="symrow" style="color:var(--dim);font-size:11px"><span>品种</span><span>月份</span><span>手续费(元/手)</span><span></span><span></span></div>
       <div id="symList"></div>
@@ -189,9 +222,9 @@
       </div>
     </div>
   </div>
+
 <script>
 "use strict";
-/* ================= 常用品种库（乘数与手续费按交易所标准，手续费可在设置里改） ================= */
 var COMMON = [
   {name:"黄金",  letter:"AU", mult:1000, fee:10, dec:2}, {name:"原油",  letter:"SC", mult:1000, fee:20, dec:1},
   {name:"玻璃",  letter:"FG", mult:20, fee:6,  dec:0},   {name:"螺纹钢",letter:"RB", mult:10, fee:4,  dec:0},
@@ -208,14 +241,14 @@ var COMMON = [
 ];
 
 var DEF_CONF = {
-  capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true,
+  capital:100000, maxLoss:0, maxDayLoss:0, showPnl:true, refresh:30, sound:true, notif:false,
   syms:[
     {name:"黄金", letter:"AU", mult:1000, fee:10, dec:2, month:"0", main:false},
     {name:"原油", letter:"SC", mult:1000, fee:20, dec:1, month:"0", main:false}
   ]
 };
 var CONF = loadConf();
-var SYMS=[], CFG={}, STOP_PTS={}, BUFFER=0.001, REFRESH=30000;
+var SYMS=[], CFG={}, STOP_PTS={}, BUFFER=0.001, REFRESH=(CONF.refresh>0?CONF.refresh:0)*1000;
 var state={};
 
 function loadConf(){
@@ -245,13 +278,16 @@ function loadConf(){
           }
         });
         if(c.showPnl===undefined) c.showPnl=true;
+        if(c.refresh===undefined) c.refresh=30;
+        if(c.sound===undefined) c.sound=true;
+        if(c.notif===undefined) c.notif=false;
         out=c;
       }
     }
   }catch(e){}
   return out;
 }
-function saveConf(){ try{ localStorage.setItem("futuresSignalConf",JSON.stringify(CONF)); }catch(e){} }
+function saveConf(){ try{ localStorage.setItem("futuresSignalConfV2",JSON.stringify(CONF)); }catch(e){} }
 
 function codeOf(sym){ return sym.letter + (sym.month==="0" ? "0" : sym.month); }
 
@@ -266,14 +302,13 @@ function rebuild(){
     STOP_PTS[code]= CONF.maxLoss>0 ? Math.round(CONF.maxLoss/CFG[code].mult*100)/100 : null;
     state[code]={price:null,vwap:null,prev:null,chgPct:null,vol:null,oi:null,
       hold:"无", lastDir:null, entry:null, entryTime:null, editingEntry:false, stop:null, lastEvent:null,
-      minline:[], daily:null, chartMode:"min", kp:"5m"};
+      minline:[], daily:null, chartMode:"min", kp:"5m", folded:false};
   });
   document.getElementById("headMeta").textContent =
     "资金"+CONF.capital+" · 单笔止损"+CONF.maxLoss+"元 · 单日停手"+CONF.maxDayLoss+"元";
 }
 
-/* ================= 音频 + 通知 ================= */
-var AudioCtx=null, soundOn=true, notifOn=false, notifGranted=false;
+var AudioCtx=null, soundOn=(CONF.sound!==false), notifOn=!!CONF.notif, notifGranted=false;
 function ensureAudio(){
   if(!AudioCtx){ try{ AudioCtx=new(window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
   if(AudioCtx && AudioCtx.state==="suspended") AudioCtx.resume();
@@ -294,7 +329,6 @@ function notify(title,body){
   if(notifOn && notifGranted && "Notification" in window){ try{ new Notification(title,{body:body}); }catch(e){} }
 }
 
-/* ================= 行情拉取(JSONP 分时) ================= */
 function loadScript(src,onload,onerr){
   var s=document.createElement("script"); s.src=src; s.async=true;
   s.onload=function(){ if(onload)onload(); };
@@ -302,8 +336,9 @@ function loadScript(src,onload,onerr){
   document.head.appendChild(s);
 }
 function mlUrl(code){ return "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_k=/InnerFuturesNewService.getMinline?symbol="+code; }
-var jobQueue=[];
+var jobQueue=[], roundGot=false;
 function beginRound(){
+  roundGot=false;
   if(!SYMS.length){ setNet(true); return; }
   jobQueue=SYMS.slice(); nextMinline();
 }
@@ -314,7 +349,7 @@ function nextMinline(){
   loadScript(mlUrl(code), function(){
     var arr=window.__k||window._k;
     try{ window.__k=null; delete window._k; }catch(e){}
-    if(Array.isArray(arr)&&arr.length) applyMinline(code,arr);
+    if(Array.isArray(arr)&&arr.length){ applyMinline(code,arr); roundGot=true; }
     setTimeout(nextMinline,0);
   }, function(){ setTimeout(nextMinline,0); });
 }
@@ -384,9 +419,8 @@ function computeSignal(code){
   return {dir:dir,event:event};
 }
 
-/* ================= 渲染 ================= */
 var lastFull=null;
-function finishRound(){ lastFull=Date.now(); render(); setNet(true); schedule(); }
+function finishRound(){ lastFull=Date.now(); render(); setNet(roundGot); schedule(); }
 function priceCls(chg){ return chg==null?"":(chg>=0?"up":"down"); }
 function decOf(code){ var cfg=CFG[code]; return (cfg && cfg.dec!=null)? cfg.dec : 0; }
 function pfmt(code,v){ if(v==null) return "—"; return v.toFixed(decOf(code)); }
@@ -434,6 +468,17 @@ function drawChart(cv){
   var code=cv.dataset.code, st=state[code];
   if(st.chartMode==="kline") drawK(cv,st,st.kp||"day");
   else drawMin(cv,st);
+}
+function toggleFold(code){
+  var st=state[code]; if(!st) return;
+  st.folded=!st.folded;
+  var card=document.querySelector('.card[data-code="'+code+'"]');
+  if(card){
+    card.classList.toggle("open",!st.folded);
+    var btn=card.querySelector(".foldbtn");
+    if(btn) btn.textContent=st.folded?"展开":"收起";
+    if(!st.folded){ var cv=card.querySelector("canvas.chart"); if(cv) setTimeout(function(){drawChart(cv);},0); }
+  }
 }
 function prepCanvas(cv){
   var ctx=cv.getContext("2d"), dpr=window.devicePixelRatio||1;
@@ -563,13 +608,16 @@ function render(){
     else if(dir==="空") tip="现价"+pfmt(code,st.price)+"在均价("+pfmt(code,st.vwap)+")下方，偏空";
     else tip="现价贴着均价("+(st.vwap!=null?pfmt(code,st.vwap):"—")+")，方向不明";
     var card=document.createElement("div");
-    card.className="card"+(cfg.main?" main":"")+(st.sigPulse?" sig-pulse":"");
+    card.className="card"+(cfg.main?" main":"")+(st.sigPulse?" sig-pulse":"")+(st.folded?"":" open");
+    card.dataset.code=code;
     card.innerHTML=
       '<div class="cardtop"><span class="cname">'+cfg.name+'</span><span class="ctag">'+code+monthTag(cfg.letter,cfg.month)+(cfg.main?" · 主线":" · 辅助")+'</span>'+
-      '<span class="sig '+badgeClass+'">'+badgeText+'</span></div>'+
+      '<span class="sig '+badgeClass+'">'+badgeText+'</span>'+
+      '<button type="button" class="foldbtn" onclick="toggleFold(\''+code+'\')">'+(st.folded?"展开":"收起")+'</button></div>'+
       '<div class="price '+priceCls(chg)+'">'+(st.price!=null?pfmt(code,st.price):"—")+'</div>'+
       '<div class="chg '+priceCls(chg)+'">'+chgTxt+'</div>'+
       pnlTxt+
+      '<div class="detail">'+
       '<div class="kv">'+
         '<div><span class="k">当日均价</span><span class="v">'+(st.vwap!=null?pfmt(code,st.vwap):"—")+'</span></div>'+
         '<div><span class="k">成交量</span><span class="v">'+(st.vol!=null?(st.vol/10000).toFixed(1)+"万":"—")+'</span></div>'+
@@ -589,7 +637,8 @@ function render(){
       (st.chartMode==="kline"? '<select class="kp" onchange="setKp(\''+code+'\',this.value)">'+KPERIODS.map(function(p){return '<option value="'+p[0]+'"'+(st.kp===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join("")+'</select>' : '')+
       '</div>'+
       '<canvas class="chart'+(cfg.main?' main':'')+'" data-code="'+code+'"></canvas>'+
-      '<div class="note'+(event?" hot":"")+'">'+tip+'</div>';
+      '<div class="note'+(event?" hot":"")+'">'+tip+'</div>'+
+      '</div>';
     grid.appendChild(card);
   });
   grid.querySelectorAll("canvas.chart").forEach(function(cv){ drawChart(cv); });
@@ -597,7 +646,6 @@ function render(){
     lastFull? ("更新 "+new Date(lastFull).toLocaleTimeString("zh-CN",{hour12:false})) : "";
 }
 
-/* ================= 今日信号记录 ================= */
 function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 var logs=[], logDate="";
 function addLog(code,name,event,st){
@@ -624,15 +672,13 @@ function renderLog(){
 }
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-/* ================= 网络/调度 ================= */
 function setNet(ok){
   document.getElementById("netStatus").innerHTML =
-    ok? '<span class="dot"></span>行情已连接' : '<span class="dot err"></span>连接失败，正在重试…';
+    ok? '<span class="dot"></span>行情已连接' : '<span class="dot err"></span>暂无行情（可能被预览环境拦截），重试中…';
 }
 var timer=null;
-function schedule(){ clearTimeout(timer); timer=setTimeout(beginRound,REFRESH); }
+function schedule(){ clearTimeout(timer); if(REFRESH>0) timer=setTimeout(beginRound,REFRESH); }
 
-/* ================= 月份探测 ================= */
 function genMonths(n){
   var now=new Date(), out=[];
   for(var i=1;i<=n;i++){
@@ -693,12 +739,14 @@ function renderCommSel(){
     COMMON.map(function(c,i){ return '<option value="'+i+'">'+c.name+'（'+c.letter+'）</option>'; }).join("");
 }
 
-/* ================= 设置面板 ================= */
 function openSet(){
   document.getElementById("fCap").value=CONF.capital;
   document.getElementById("fLoss").value=CONF.maxLoss;
   document.getElementById("fDay").value=CONF.maxDayLoss;
   document.getElementById("fShowPnl").checked = CONF.showPnl!==false;
+  document.getElementById("fRefresh").value = (CONF.refresh!=null?CONF.refresh:30);
+  document.getElementById("fSound").checked = (CONF.sound!==false);
+  document.getElementById("fNotif").checked = !!CONF.notif;
   renderSymList(); renderCommSel(); fillMonthSel();
   document.getElementById("mask").classList.add("show");
 }
@@ -729,7 +777,6 @@ function collectSyms(){
   return out;
 }
 
-/* ================= 事件 ================= */
 document.addEventListener("click",ensureAudio);
 document.getElementById("setBtn").addEventListener("click",openSet);
 document.getElementById("cancelSet").addEventListener("click",function(){ document.getElementById("mask").classList.remove("show"); });
@@ -777,13 +824,21 @@ document.getElementById("saveSet").addEventListener("click",function(){
   CONF.maxLoss=Number(document.getElementById("fLoss").value)||DEF_CONF.maxLoss;
   CONF.maxDayLoss=Number(document.getElementById("fDay").value)||DEF_CONF.maxDayLoss;
   CONF.showPnl=document.getElementById("fShowPnl").checked;
+  CONF.refresh=Number(document.getElementById("fRefresh").value)||30;
+  CONF.sound=document.getElementById("fSound").checked;
+  CONF.notif=document.getElementById("fNotif").checked;
   CONF.syms=syms;
+  REFRESH=(CONF.refresh>0?CONF.refresh:0)*1000;
+  soundOn=CONF.sound!==false; notifOn=!!CONF.notif;
+  if(notifOn && !notifGranted && "Notification" in window && Notification.permission==="granted") notifGranted=true;
+  syncBtnText();
   saveConf(); rebuild(); renderLog();
   document.getElementById("mask").classList.remove("show");
   clearTimeout(timer); beginRound();
 });
 document.getElementById("soundBtn").addEventListener("click",function(){
   ensureAudio(); soundOn=!soundOn;
+  CONF.sound=soundOn; saveConf();
   this.textContent="提醒音："+(soundOn?"开":"关"); this.classList.toggle("off",!soundOn);
 });
 document.getElementById("notifBtn").addEventListener("click",function(){
@@ -794,9 +849,15 @@ document.getElementById("notifBtn").addEventListener("click",function(){
       try{ Notification.requestPermission().then(function(p){ notifGranted=p==="granted"; }); }catch(e){}
     }
   }
+  CONF.notif=notifOn; saveConf();
   this.textContent="系统通知："+(notifOn?"开":"关"); this.classList.toggle("off",!notifOn);
 });
 document.getElementById("refreshBtn").addEventListener("click",function(){ clearTimeout(timer); beginRound(); });
+function syncBtnText(){
+  var sb=document.getElementById("soundBtn"); if(sb){ sb.textContent="提醒音："+(soundOn?"开":"关"); sb.classList.toggle("off",!soundOn); }
+  var nb=document.getElementById("notifBtn"); if(nb){ nb.textContent="系统通知："+(notifOn?"开":"关"); nb.classList.toggle("off",!notifOn); }
+  refreshPnlBtn();
+}
 function refreshPnlBtn(){
   var b=document.getElementById("pnlBtn"); if(!b) return;
   b.textContent = CFG.showPnl!==false ? "盈亏:开" : "盈亏:关";
@@ -809,7 +870,6 @@ function togglePnl(){
 }
 refreshPnlBtn();
 
-/* ================= 启动 ================= */
 rebuild();
 function initProbe(){
   var letters={};
@@ -824,6 +884,7 @@ function initProbe(){
 }
 initProbe();
 renderLog();
+syncBtnText();
 beginRound();
 </script>
 </body>
